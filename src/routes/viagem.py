@@ -96,6 +96,142 @@ async def get_viagem_endpoint(viagem_id: str):
       content=BaseResponse(success=False, message=f"Erro ao buscar viagem: {str(e)}").model_dump()
     )
 
+@router.get("/viagens/veiculo/modelo/{modelo_veiculo}")
+async def get_viagens_por_modelo_veiculo_endpoint(modelo_veiculo: str):
+  try:
+    pipeline = [
+      {
+        "$addFields": {
+          "motorista_id": "$motorista.$id",
+          "localizacao_id": "$localizacao_inicial.$id"
+        }
+      },
+      {
+        "$lookup": {
+          "from": "motoristas",
+          "localField": "motorista_id",
+          "foreignField": "_id",
+          "as": "motorista_info"
+        }
+      },
+      {"$unwind": "$motorista_info"},
+      {
+        "$lookup": {
+          "from": "veiculos",
+          "let": {"id_motorista": "$motorista_id"},
+          "pipeline": [
+            {
+              "$match": {
+                "$expr": {"$eq": ["$motorista.$id", "$$id_motorista"]},
+                "modelo": modelo_veiculo
+              }
+            }
+          ],
+          "as": "veiculo_info"
+        }
+      },
+      {"$unwind": "$veiculo_info"},
+      {
+        "$lookup": {
+          "from": "localizacoes",
+          "localField": "localizacao_id",
+          "foreignField": "_id",
+          "as": "localizacao_info"
+        }
+      },
+      {"$unwind": "$localizacao_info"},
+      {
+        "$project": {
+          "_id": 0,
+          "motorista_nome": "$motorista_info.nome",
+          "veiculo_placa": "$veiculo_info.placa",
+          "veiculo_modelo": "$veiculo_info.modelo",
+          "cidade_partida": "$localizacao_info.cidade"
+        }
+      }
+    ]
+    
+    viagens_aggregate = Viagem.aggregate(pipeline)
+    viagens_list = await viagens_aggregate.to_list()
+    
+    return JSONResponse(
+      status_code=200,
+      content=jsonable_encoder(BaseResponse[List[dict]](success=True, message="Viagens por veiculo", data=viagens_list).model_dump())
+    )
+  
+  except Exception as e:
+    return JSONResponse(
+      status_code=e.status_code if isinstance(e, HTTPException) else 500,
+      content=BaseResponse(success=False, message=f"Erro ao buscar viagens por veiculo: {str(e)}").model_dump()
+    )
+
+@router.get("/viagens/passageiro/cidade_partida/{cidade_partida}")
+async def get_viagens_passageiro_cidade_partida_endpoint(cidade_partida: str):
+  try:
+    pipeline = [
+      {
+        "$addFields": {
+          "passageiro_id": "$passageiro.$id",
+          "localizacao_inicial_id": "$localizacao_inicial.$id",
+          "localizacao_final_id": "$localizacao_final.$id"
+        }
+      },
+      {
+        "$lookup": {
+          "from": "passageiros",
+          "localField": "passageiro_id",
+          "foreignField": "_id",
+          "as": "passageiro_info"
+        }
+      },
+      {"$unwind": "$passageiro_info"},
+      {
+        "$lookup": {
+          "from": "localizacoes",
+          "localField": "localizacao_inicial_id",
+          "foreignField": "_id",
+          "as": "localizacao_inicial_info"
+        }
+      },
+      {"$unwind": "$localizacao_inicial_info"},
+      {
+        "$lookup": {
+          "from": "localizacoes",
+          "localField": "localizacao_final_id",
+          "foreignField": "_id",
+          "as": "localizacao_final_info"
+        }
+      },
+      {"$unwind": "$localizacao_final_info"},
+      {
+        "$match": {
+          "localizacao_inicial_info.cidade": cidade_partida
+          }
+        },
+      {
+        "$project": {
+          "_id": 0,
+          "passageiro_nome": "$passageiro_info.nome",
+          "cidade_partida": "$localizacao_inicial_info.cidade",
+          "cidade_chegada": "$localizacao_final_info.cidade"
+        }
+      }
+    ]
+    
+    viagens_aggregate = Viagem.aggregate(pipeline)
+    viagens_list = await viagens_aggregate.to_list()
+    
+    return JSONResponse(
+      status_code=200,
+      content=jsonable_encoder(BaseResponse[List[dict]](success=True, message="Viagens por cidade de partida", data=viagens_list).model_dump())
+    )
+  
+  except Exception as e:
+    return JSONResponse(
+      status_code=e.status_code if isinstance(e, HTTPException) else 500,
+      content=BaseResponse(success=False, message=f"Erro ao buscar viagens por cidade de partida: {str(e)}").model_dump()
+    )
+
 @router.get("/viagens/ano/{viagem_ano}")
 async def get_viagem_ano_endpoint(viagem_ano: int):
   try:
@@ -177,7 +313,6 @@ async def get_viagens_ponto_partida_count_endpoint():
     
     viagens_aggregate = Viagem.aggregate(pipeline)
     viagens_list = await viagens_aggregate.to_list()
-    print(viagens_list)
 
     if not viagens_list:
       raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nenhuma viagem encontrada")
