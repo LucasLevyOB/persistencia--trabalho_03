@@ -8,7 +8,6 @@ from src.routes.viagem import router as viagem_router
 
 app = FastAPI()
 
-# sudo systemctl start mongod
 @app.on_event("startup")
 async def on_startup():
     await init_beanie()
