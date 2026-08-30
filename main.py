@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from src.database.init_beanie import init_beanie
 from src.routes.motorista import router as motorista_router
 from src.routes.veiculo import router as veiculo_router
@@ -7,6 +8,14 @@ from src.routes.localizacao import router as localizacao_router
 from src.routes.viagem import router as viagem_router
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.on_event("startup")
 async def on_startup():
