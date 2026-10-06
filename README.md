@@ -74,3 +74,4 @@ main.py
 ## Autores
 
 - Lucas
+- Daniel
