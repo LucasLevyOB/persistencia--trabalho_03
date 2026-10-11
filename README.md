@@ -1,4 +1,4 @@
-# Persistência - Trabalho 3
+# Bora - Trabalho 3
 
 Projeto de API REST em Python utilizando FastAPI, Beanie ODM e MongoDB para gerenciamento de motoristas, veículos, passageiros, localizações e viagens.
 
